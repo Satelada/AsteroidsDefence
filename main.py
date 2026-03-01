@@ -185,7 +185,7 @@ def load_space_music(assets_dir, log):
 
 
 def load_shoot_sound(assets_dir, log):
-    for name in ("shoot.wav", "shoot.ogg"):
+    for name in ("shoot.ogg", "shoot.wav"):
         path = os.path.join(assets_dir, name)
         if os.path.isfile(path):
             try:
