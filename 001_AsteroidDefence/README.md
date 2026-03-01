@@ -14,7 +14,7 @@ A 2D game: you rotate a space cannon at the bottom and shoot at asteroids fallin
 Open a command prompt or PowerShell and go to this folder:
 
 ```text
-cd "c:\Users\marker_d\Documents\99_programmieren\Sateda\001_Fallende_Steine"
+cd "001_Fallende_Steine"
 ```
 
 Then run:
@@ -66,3 +66,4 @@ The game looks for files in the **`assets`** folder (next to `main.py`). You mus
 See `assets/README.txt` for a short guide (in German).
 
 Enjoy!
+
