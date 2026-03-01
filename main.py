@@ -1,5 +1,5 @@
 # Asteroid Defence - 2D game in Python with Pygame
-# Menu: 1-9 = asteroid size, SPACE = Start. Game: Arrow/A/D = rotate, SPACE = shoot
+# Menu: 1-3 = difficulty, ENTER = Start. Game: Arrow/A/D = rotate, SPACE = shoot
 
 import os
 import sys
@@ -7,6 +7,7 @@ import asyncio
 import pygame
 import random
 import math
+import json
 
 # === Settings ===
 WIDTH = 600
@@ -26,6 +27,13 @@ ASTEROID_SPAWN_INTERVAL = 90
 POINTS_PER_HIT = 10
 GROUND_OFFSET = 20
 MAX_PARTICLES = 120
+MAX_HIGHSCORES = 10
+
+DIFFICULTIES = {
+    1: {"name": "Easy", "size": 9, "key": "easy"},
+    2: {"name": "Normal", "size": 6, "key": "normal"},
+    3: {"name": "Difficult", "size": 3, "key": "difficult"},
+}
 
 # Colors
 BLACK = (0, 0, 0)
@@ -33,6 +41,7 @@ WHITE = (255, 255, 255)
 RED = (220, 60, 60)
 GRAY = (120, 120, 120)
 GREEN = (60, 200, 80)
+YELLOW = (255, 220, 80)
 CANNON_METAL = (70, 75, 90)
 CANNON_GLOW = (60, 140, 220)
 CANNON_DARK = (50, 55, 68)
@@ -89,6 +98,78 @@ def get_assets_dir():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
+def _is_web():
+    return sys.platform == "emscripten"
+
+
+def get_highscore_path():
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "highscores.json")
+
+
+def load_highscores():
+    default = {"easy": [], "normal": [], "difficult": []}
+    if _is_web():
+        try:
+            import platform
+            raw = platform.window.localStorage.getItem("asteroid_defence_highscores")
+            if raw:
+                data = json.loads(raw)
+                for key in default:
+                    if key not in data:
+                        data[key] = []
+                return data
+        except Exception:
+            pass
+        return default
+    path = get_highscore_path()
+    if not os.path.isfile(path):
+        return default
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        for key in default:
+            if key not in data:
+                data[key] = []
+        return data
+    except Exception:
+        return default
+
+
+def save_highscores(data):
+    if _is_web():
+        try:
+            import platform
+            platform.window.localStorage.setItem(
+                "asteroid_defence_highscores", json.dumps(data))
+        except Exception as e:
+            print("Could not save highscores to localStorage:", e)
+        return
+    try:
+        with open(get_highscore_path(), "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        print("Could not save highscores:", e)
+
+
+def is_highscore(data, difficulty, score):
+    if score <= 0:
+        return False
+    key = DIFFICULTIES[difficulty]["key"]
+    entries = data.get(key, [])
+    if len(entries) < MAX_HIGHSCORES:
+        return True
+    return score > entries[-1]["score"]
+
+
+def add_highscore(data, difficulty, name, score):
+    key = DIFFICULTIES[difficulty]["key"]
+    entries = data.get(key, [])
+    entries.append({"name": name if name else "-", "score": score})
+    entries.sort(key=lambda e: e["score"], reverse=True)
+    data[key] = entries[:MAX_HIGHSCORES]
+    return data
+
+
 def make_background():
     """Generate all static background elements with fixed seeds."""
     rng = random.Random(42)
@@ -111,7 +192,6 @@ def make_background():
     for _ in range(3):
         nebulae.append((rng.randint(0, WIDTH), rng.randint(0, HEIGHT - 150),
                          rng.randint(50, 110), rng.choice(NEBULA_COLORS)))
-    # Mountains
     mrng = random.Random(456)
     mountain_ridge = [(0, 700)]
     mx = 0
@@ -120,7 +200,6 @@ def make_background():
         mx += mrng.randint(40, 90)
     mountain_ridge.append((WIDTH, 700))
     mountains = mountain_ridge + [(WIDTH, HEIGHT), (0, HEIGHT)]
-    # City
     crng = random.Random(123)
     buildings = []
     bx = 0
@@ -165,24 +244,6 @@ def create_explosion(x, y, count=15):
     return particles
 
 
-def load_space_music(assets_dir, log):
-    for name in ("space_music.ogg", "space_music.mp3", "space_music.wav", "music.ogg", "music.mp3", "music.wav"):
-        path = os.path.join(assets_dir, name)
-        if os.path.isfile(path):
-            try:
-                pygame.mixer.music.load(path)
-                pygame.mixer.music.set_volume(0.6)
-                pygame.mixer.music.play(loops=-1)
-                if log:
-                    print("  Music: playing (" + name + ")")
-                return True
-            except Exception as e:
-                if log:
-                    print("  Music: error loading", name, "-", e)
-    if log:
-        print("  Music: not found")
-    return False
-
 
 def load_shoot_sound(assets_dir, log):
     for name in ("shoot.ogg", "shoot.wav"):
@@ -201,6 +262,17 @@ def load_shoot_sound(assets_dir, log):
     return None
 
 
+def make_menu_state(difficulty, angle=0):
+    _r = min(size_to_radius(DIFFICULTIES[difficulty]["size"]), 80)
+    return {
+        "menu": True, "difficulty": difficulty,
+        "menu_asteroid_angle": angle,
+        "menu_asteroid_verts": make_asteroid_vertices(_r),
+        "menu_asteroid_craters": make_asteroid_craters(_r),
+        "menu_asteroid_cached_diff": difficulty,
+    }
+
+
 async def main():
     pygame.init()
     try:
@@ -213,18 +285,18 @@ async def main():
     font = pygame.font.Font(None, 48)
     font_large = pygame.font.Font(None, 72)
     font_small = pygame.font.Font(None, 36)
+    font_tiny = pygame.font.Font(None, 28)
 
     assets_dir = get_assets_dir()
     print("Assets folder:", os.path.abspath(assets_dir))
     if not os.path.isdir(assets_dir):
         print("  -> Folder missing! Create 'assets' next to main.py and add files.")
     shoot_sound = load_shoot_sound(assets_dir, log=True) if os.path.isdir(assets_dir) else None
-    music_loaded = False
-    if os.path.isdir(assets_dir):
-        music_loaded = load_space_music(assets_dir, log=True)
     bg = make_background()
+    highscores = load_highscores()
 
-    def new_game(asteroid_size):
+    def new_game(difficulty):
+        asteroid_size = DIFFICULTIES[difficulty]["size"]
         return {
             "angle": 0,
             "bullets": [],
@@ -241,17 +313,10 @@ async def main():
             "score_popups": [],
             "muzzle_flash": 0,
             "shooting_stars": [],
+            "difficulty": difficulty,
         }
 
-    _init_r = min(size_to_radius(5), 80)
-    state = {
-        "menu": True, "asteroid_size": 5, "menu_asteroid_angle": 0, "music_on": False,
-        "menu_asteroid_verts": make_asteroid_vertices(_init_r),
-        "menu_asteroid_craters": make_asteroid_craters(_init_r),
-        "menu_asteroid_cached_size": 5,
-    }
-    if music_loaded:
-        pygame.mixer.music.set_volume(0)
+    state = make_menu_state(2)
 
     tick = 0
     running = True
@@ -261,51 +326,74 @@ async def main():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN:
+                # --- Name entry mode ---
+                if state.get("entering_name"):
+                    if event.key == pygame.K_RETURN:
+                        name = state.get("player_name", "").strip()
+                        highscores = add_highscore(highscores, state["difficulty"], name, state["final_score"])
+                        save_highscores(highscores)
+                        state = make_menu_state(
+                            state["difficulty"],
+                            state.get("menu_asteroid_angle", 0),
+                        )
+                    elif event.key == pygame.K_BACKSPACE:
+                        state["player_name"] = state.get("player_name", "")[:-1]
+                    elif event.key == pygame.K_ESCAPE:
+                        highscores = add_highscore(highscores, state["difficulty"], "", state["final_score"])
+                        save_highscores(highscores)
+                        state = make_menu_state(
+                            state["difficulty"],
+                            state.get("menu_asteroid_angle", 0),
+                        )
+                    elif event.unicode and len(state.get("player_name", "")) < 15:
+                        if event.unicode.isprintable() and event.unicode not in ('\r', '\n', '\t'):
+                            state["player_name"] = state.get("player_name", "") + event.unicode
+                    continue
+
                 if event.key == pygame.K_ESCAPE:
                     if state.get("menu"):
                         running = False
                     else:
-                        _sz = state.get("asteroid_size", 5)
-                        _r = min(size_to_radius(_sz), 80)
-                        state = {"menu": True, "asteroid_size": _sz,
-                                 "menu_asteroid_angle": state.get("menu_asteroid_angle", 0),
-                                 "music_on": state.get("music_on", False),
-                                 "menu_asteroid_verts": make_asteroid_vertices(_r),
-                                 "menu_asteroid_craters": make_asteroid_craters(_r),
-                                 "menu_asteroid_cached_size": _sz}
+                        state = make_menu_state(
+                            state.get("difficulty", 2),
+                            state.get("menu_asteroid_angle", 0),
+                        )
                         continue
+
                 if state.get("menu"):
-                    if pygame.K_1 <= event.key <= pygame.K_9:
-                        state["asteroid_size"] = event.key - pygame.K_0
-                        _r = min(size_to_radius(state["asteroid_size"]), 80)
+                    if event.key in (pygame.K_1, pygame.K_KP1):
+                        state["difficulty"] = 1
+                    elif event.key in (pygame.K_2, pygame.K_KP2):
+                        state["difficulty"] = 2
+                    elif event.key in (pygame.K_3, pygame.K_KP3):
+                        state["difficulty"] = 3
+                    elif event.key == pygame.K_RETURN:
+                        saved_angle = state.get("menu_asteroid_angle", 0)
+                        diff = state["difficulty"]
+                        state = new_game(diff)
+                        state["menu_asteroid_angle"] = saved_angle
+                    diff = state.get("difficulty", 2)
+                    if state.get("menu") and state.get("menu_asteroid_cached_diff") != diff:
+                        _r = min(size_to_radius(DIFFICULTIES[diff]["size"]), 80)
                         state["menu_asteroid_verts"] = make_asteroid_vertices(_r)
                         state["menu_asteroid_craters"] = make_asteroid_craters(_r)
-                        state["menu_asteroid_cached_size"] = state["asteroid_size"]
-                    elif event.key == pygame.K_0:
-                        state["music_on"] = not state.get("music_on", False)
-                        if music_loaded:
-                            if state["music_on"]:
-                                pygame.mixer.music.set_volume(0.6)
-                                pygame.mixer.music.play(loops=-1)
-                            else:
-                                pygame.mixer.music.set_volume(0)
-                    elif event.key == pygame.K_SPACE:
-                        saved_music = state.get("music_on", False)
-                        saved_angle = state.get("menu_asteroid_angle", 0)
-                        state = new_game(state["asteroid_size"])
-                        state["music_on"] = saved_music
-                        state["menu_asteroid_angle"] = saved_angle
+                        state["menu_asteroid_cached_diff"] = diff
                     continue
-                if state.get("game_over") and event.key == pygame.K_SPACE:
-                    _sz = state["asteroid_size"]
-                    _r = min(size_to_radius(_sz), 80)
-                    state = {"menu": True, "asteroid_size": _sz,
-                             "menu_asteroid_angle": state.get("menu_asteroid_angle", 0),
-                             "music_on": state.get("music_on", False),
-                             "menu_asteroid_verts": make_asteroid_vertices(_r),
-                             "menu_asteroid_craters": make_asteroid_craters(_r),
-                             "menu_asteroid_cached_size": _sz}
+
+                if state.get("game_over") and event.key == pygame.K_RETURN:
+                    score = state.get("score", 0)
+                    diff = state.get("difficulty", 2)
+                    if is_highscore(highscores, diff, score):
+                        state["entering_name"] = True
+                        state["player_name"] = ""
+                        state["final_score"] = score
+                    else:
+                        state = make_menu_state(
+                            diff,
+                            state.get("menu_asteroid_angle", 0),
+                        )
                     continue
+
                 if not state.get("game_over") and event.key in (pygame.K_SPACE, pygame.K_LCTRL, pygame.K_RCTRL):
                     rad = math.radians(state["angle"])
                     cx = WIDTH // 2
@@ -383,7 +471,6 @@ async def main():
                         })
                         break
 
-            # Particles
             for p in state["particles"][:]:
                 p["x"] += p["vx"]
                 p["y"] += p["vy"]
@@ -392,18 +479,15 @@ async def main():
                 if p["life"] <= 0:
                     state["particles"].remove(p)
 
-            # Score popups
             for sp in state["score_popups"][:]:
                 sp["y"] -= 1.2
                 sp["life"] -= 1
                 if sp["life"] <= 0:
                     state["score_popups"].remove(sp)
 
-            # Muzzle flash decay
             if state.get("muzzle_flash", 0) > 0:
                 state["muzzle_flash"] -= 1
 
-            # Shooting stars
             if random.random() < 0.006:
                 state["shooting_stars"].append({
                     "x": random.randint(0, WIDTH), "y": random.randint(0, HEIGHT // 3),
@@ -463,25 +547,38 @@ async def main():
         # --- Menu ---
         if state.get("menu"):
             state["menu_asteroid_angle"] = state.get("menu_asteroid_angle", 0) + MENU_ASTEROID_ROTATE_SPEED
-            g = state["asteroid_size"]
+            diff = state.get("difficulty", 2)
+            diff_info = DIFFICULTIES[diff]
+
             title = font_large.render("Asteroid Defence", True, WHITE)
-            size_text = font.render(f"Asteroid size: {g}", True, GREEN)
-            music_text = font.render("0 = Music " + ("On" if state.get("music_on", False) else "Off"), True, GRAY)
-            hint = font.render("1-9 = size  |  SPACE = Start", True, GRAY)
-            screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 100))
-            screen.blit(size_text, (WIDTH // 2 - size_text.get_width() // 2, 220))
-            screen.blit(music_text, (WIDTH // 2 - music_text.get_width() // 2, 280))
-            screen.blit(hint, (WIDTH // 2 - hint.get_width() // 2, 320))
+            screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 50))
+
+            # Difficulty selection
+            y_diff = 130
+            for d_num, d_info in DIFFICULTIES.items():
+                color = GREEN if d_num == diff else GRAY
+                label = f"{d_num} = {d_info['name']}"
+                txt = font_small.render(label, True, color)
+                x_pos = WIDTH // 2 + (d_num - 2) * 160 - txt.get_width() // 2
+                screen.blit(txt, (x_pos, y_diff))
+
+            # Controls
+            ctrl1 = font_tiny.render("Arrows / A,D = Rotate  |  SPACE = Shoot", True, GRAY)
+            ctrl2 = font_small.render("ENTER = Start", True, GREEN)
+            screen.blit(ctrl1, (WIDTH // 2 - ctrl1.get_width() // 2, 175))
+            screen.blit(ctrl2, (WIDTH // 2 - ctrl2.get_width() // 2, 210))
+
+            # Spinning asteroid preview
             cached_verts = state.get("menu_asteroid_verts")
             cached_craters = state.get("menu_asteroid_craters")
-            if cached_verts is None or state.get("menu_asteroid_cached_size") != g:
-                _r = min(size_to_radius(g), 80)
+            if cached_verts is None or state.get("menu_asteroid_cached_diff") != diff:
+                _r = min(size_to_radius(diff_info["size"]), 80)
                 cached_verts = make_asteroid_vertices(_r)
                 cached_craters = make_asteroid_craters(_r)
                 state["menu_asteroid_verts"] = cached_verts
                 state["menu_asteroid_craters"] = cached_craters
-                state["menu_asteroid_cached_size"] = g
-            center = (WIDTH // 2, 560)
+                state["menu_asteroid_cached_diff"] = diff
+            center = (WIDTH // 2, 370)
             angle_rad = math.radians(state["menu_asteroid_angle"])
             cos_a, sin_a = math.cos(angle_rad), math.sin(angle_rad)
             pts = [(center[0] + dx * cos_a - dy * sin_a, center[1] + dx * sin_a + dy * cos_a)
@@ -493,6 +590,23 @@ async def main():
                 pygame.draw.circle(screen, ASTEROID_CRATER, (int(center[0] + rdx), int(center[1] + rdy)), int(cr), 0)
             pygame.draw.polygon(screen, ASTEROID_EDGE, pts, 2)
 
+            # Highscores
+            hs_key = diff_info["key"]
+            hs_entries = highscores.get(hs_key, [])
+            hs_title = font_small.render(f"Highscores - {diff_info['name']}", True, YELLOW)
+            screen.blit(hs_title, (WIDTH // 2 - hs_title.get_width() // 2, 475))
+            if hs_entries:
+                for i, entry in enumerate(hs_entries[:MAX_HIGHSCORES]):
+                    name_str = entry.get("name", "-") or "-"
+                    score_str = str(entry["score"])
+                    line = f"{i+1:>2}. {name_str:<15} {score_str:>6}"
+                    color = YELLOW if i < 3 else WHITE
+                    hs_line = font_tiny.render(line, True, color)
+                    screen.blit(hs_line, (WIDTH // 2 - hs_line.get_width() // 2, 505 + i * 24))
+            else:
+                no_hs = font_tiny.render("No scores yet", True, GRAY)
+                screen.blit(no_hs, (WIDTH // 2 - no_hs.get_width() // 2, 505))
+
         # --- Gameplay ---
         elif not state.get("game_over"):
             cx = WIDTH // 2
@@ -501,7 +615,6 @@ async def main():
             cos_w, sin_w = math.cos(w), math.sin(w)
             pivot_y = ground_y - CANNON_BASE_HEIGHT
 
-            # City silhouette (behind UFO)
             for bbx, bw, bh in bg["buildings"]:
                 rect = pygame.Rect(bbx, ground_y - bh, bw, bh + GROUND_OFFSET)
                 pygame.draw.rect(screen, CITY_COLOR, rect, 0)
@@ -510,13 +623,11 @@ async def main():
                 if (tick + i * 7) % 150 != 0:
                     pygame.draw.rect(screen, CITY_WINDOW, (wx, wy, 4, 4), 0)
 
-            # Ground gradient
             for gi in range(8):
                 gy = ground_y + gi * 2
                 gv = max(0, 40 - gi * 5)
                 pygame.draw.line(screen, (gv, int(gv * 1.1), gv), (0, gy), (WIDTH, gy), 2)
-            # --- Cannon ---
-            # Trapezoid base
+
             top_w = CANNON_BASE_WIDTH * 0.65
             base_pts = [
                 (cx - CANNON_BASE_WIDTH // 2, ground_y),
@@ -529,13 +640,13 @@ async def main():
                 pygame.draw.circle(screen, CANNON_DARK, (rx, int(pivot_y + CANNON_BASE_HEIGHT // 2)), 3, 0)
                 pygame.draw.circle(screen, CANNON_HIGHLIGHT, (rx, int(pivot_y + CANNON_BASE_HEIGHT // 2)), 3, 1)
             pygame.draw.polygon(screen, CANNON_GLOW, base_pts, 2)
-            # Tapered barrel
+
             bw_base = BARREL_WIDTH // 2
             bw_tip = BARREL_WIDTH // 3
             bl = BARREL_LENGTH
             barrel_shape = [(-bw_base, 0), (bw_base, 0), (bw_tip, -bl), (-bw_tip, -bl)]
-            barrel = [(cx + px * cos_w - py * sin_w, pivot_y + px * sin_w + py * cos_w)
-                       for px, py in barrel_shape]
+            barrel = [(cx + bpx * cos_w - bpy * sin_w, pivot_y + bpx * sin_w + bpy * cos_w)
+                       for bpx, bpy in barrel_shape]
             pygame.draw.polygon(screen, CANNON_METAL, barrel, 0)
             for seg in (0.33, 0.66):
                 ly = -bl * seg
@@ -546,7 +657,7 @@ async def main():
                 ln_y2 = pivot_y + lw * sin_w + ly * cos_w
                 pygame.draw.line(screen, CANNON_DARK, (ln_x1, ln_y1), (ln_x2, ln_y2), 2)
             pygame.draw.polygon(screen, CANNON_GLOW, barrel, 2)
-            # Muzzle flash
+
             if state.get("muzzle_flash", 0) > 0:
                 flash_t = state["muzzle_flash"] / 6.0
                 tip_x = cx + math.sin(w) * bl
@@ -557,7 +668,6 @@ async def main():
                     mc = (int(fc[0] * fb), int(fc[1] * fb), int(fc[2] * fb))
                     pygame.draw.circle(screen, mc, (int(tip_x), int(tip_y)), max(1, fr), 0)
 
-            # Bullets
             for b in state["bullets"]:
                 trail = b.get("trail", [(b["x"], b["y"])])
                 for i, (tx, ty) in enumerate(trail[:-1]):
@@ -570,16 +680,13 @@ async def main():
                 pygame.draw.circle(screen, (150, 200, 255), (int(b["x"]), int(b["y"])), 5, 0)
                 pygame.draw.circle(screen, WHITE, (int(b["x"]), int(b["y"])), 2, 0)
 
-            # Asteroids
             rad = state["asteroid_radius"]
             for a in state["asteroids"]:
                 ang = math.radians(a.get("angle", 0))
                 cos_a, sin_a = math.cos(ang), math.sin(ang)
                 pts = [(a["x"] + dx * cos_a - dy * sin_a, a["y"] + dx * sin_a + dy * cos_a)
                         for dx, dy in a["verts"]]
-                # Main body
                 pygame.draw.polygon(screen, ASTEROID_FILL, pts, 0)
-                # Craters
                 for dx, dy, cr in a.get("craters", []):
                     rdx = dx * cos_a - dy * sin_a
                     rdy = dx * sin_a + dy * cos_a
@@ -587,7 +694,6 @@ async def main():
                                         (int(a["x"] + rdx), int(a["y"] + rdy)), int(cr), 0)
                 pygame.draw.polygon(screen, ASTEROID_EDGE, pts, 2)
 
-            # Explosion particles
             for p in state.get("particles", []):
                 alpha = p["life"] / p["max_life"]
                 sz = max(1, int(p["size"] * alpha))
@@ -595,28 +701,40 @@ async def main():
                       int(p["color"][2] * alpha))
                 pygame.draw.circle(screen, pc, (int(p["x"]), int(p["y"])), sz, 0)
 
-            # HUD: score with background
             score_surf = font.render(f"Score: {state['score']}", True, WHITE)
             bg_rect = pygame.Rect(14, 14, score_surf.get_width() + 16, score_surf.get_height() + 8)
             pygame.draw.rect(screen, (10, 12, 20), bg_rect, 0)
             pygame.draw.rect(screen, (40, 50, 70), bg_rect, 1)
             screen.blit(score_surf, (22, 18))
 
-            # Score popups
             for sp in state.get("score_popups", []):
                 sp_alpha = max(0.0, sp["life"] / 40.0)
                 pc = (int(255 * sp_alpha), int(220 * sp_alpha), int(80 * sp_alpha))
                 popup = font_small.render(sp["text"], True, pc)
                 screen.blit(popup, (int(sp["x"]) - popup.get_width() // 2, int(sp["y"])))
 
-        # --- Game Over ---
+        # --- Game Over / Name Entry ---
         else:
-            text_over = font_large.render("Game Over!", True, RED)
-            text_score = font.render(f"Score: {state['score']}", True, WHITE)
-            text_restart = font.render("SPACE = Back to menu", True, WHITE)
-            screen.blit(text_over, (WIDTH // 2 - text_over.get_width() // 2, HEIGHT // 2 - 80))
-            screen.blit(text_score, (WIDTH // 2 - text_score.get_width() // 2, HEIGHT // 2 - 20))
-            screen.blit(text_restart, (WIDTH // 2 - text_restart.get_width() // 2, HEIGHT // 2 + 40))
+            if state.get("entering_name"):
+                text_over = font_large.render("New Highscore!", True, YELLOW)
+                text_score = font.render(f"Score: {state.get('final_score', state.get('score', 0))}", True, WHITE)
+                prompt = font_small.render("Enter your name:", True, WHITE)
+                name_str = state.get("player_name", "")
+                cursor_char = "_" if (tick // 30) % 2 == 0 else " "
+                name_display = font.render(name_str + cursor_char, True, GREEN)
+                hint = font_small.render("ENTER = Confirm  |  ESC = Skip", True, GRAY)
+                screen.blit(text_over, (WIDTH // 2 - text_over.get_width() // 2, HEIGHT // 2 - 120))
+                screen.blit(text_score, (WIDTH // 2 - text_score.get_width() // 2, HEIGHT // 2 - 50))
+                screen.blit(prompt, (WIDTH // 2 - prompt.get_width() // 2, HEIGHT // 2 + 10))
+                screen.blit(name_display, (WIDTH // 2 - name_display.get_width() // 2, HEIGHT // 2 + 50))
+                screen.blit(hint, (WIDTH // 2 - hint.get_width() // 2, HEIGHT // 2 + 110))
+            else:
+                text_over = font_large.render("Game Over!", True, RED)
+                text_score = font.render(f"Score: {state['score']}", True, WHITE)
+                text_restart = font.render("ENTER = Back to menu", True, WHITE)
+                screen.blit(text_over, (WIDTH // 2 - text_over.get_width() // 2, HEIGHT // 2 - 80))
+                screen.blit(text_score, (WIDTH // 2 - text_score.get_width() // 2, HEIGHT // 2 - 20))
+                screen.blit(text_restart, (WIDTH // 2 - text_restart.get_width() // 2, HEIGHT // 2 + 40))
 
         # Screen shake
         shake_val = state.get("shake", 0) if not state.get("menu") else 0
@@ -633,7 +751,6 @@ async def main():
         clock.tick(60)
         await asyncio.sleep(0)
 
-    pygame.mixer.music.stop()
     pygame.quit()
 
 

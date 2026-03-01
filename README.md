@@ -1,23 +1,23 @@
-# Falling Asteroids
+# Asteroid Defence
 
-A 2D game: you rotate a space cannon at the bottom and shoot at asteroids falling from above. If an asteroid hits the ground, game over. The more you hit, the more points—and asteroids speed up over time.
+A 2D space defence game built with Python and Pygame. Rotate a cannon at the bottom of the screen and shoot asteroids before they hit the ground. The more you hit, the more points — and asteroids speed up over time.
 
-## How to run
+## Play online
 
-### 1. Install Python (if needed)
+Play in the browser via GitHub Pages (no install needed):
 
-- Go to [python.org](https://www.python.org/downloads/) and download the latest Python.
-- During setup, check **"Add Python to PATH"**, then run "Install Now".
+**https://satelada.github.io/AsteroidsDefence/**
+
+## Run locally
+
+### 1. Install Python
+
+- Download from [python.org](https://www.python.org/downloads/)
+- During setup, check **"Add Python to PATH"**
 
 ### 2. Install Pygame
 
-Open a command prompt or PowerShell and go to this folder:
-
-```text
-cd "c:\Users\marker_d\Documents\99_programmieren\Sateda\001_Fallende_Steine"
-```
-
-Then run:
+Open a terminal in the project folder and run:
 
 ```text
 python -m pip install -r requirements.txt
@@ -25,44 +25,45 @@ python -m pip install -r requirements.txt
 
 ### 3. Start the game
 
-**Important:** Start the game from the project folder so that music and images (from the `assets` folder) work:
-
 ```text
-cd "c:\Users\marker_d\Documents\99_programmieren\Sateda\001_Fallende_Steine"
 python main.py
 ```
 
-Do not just double-click `main.py` or run it from another directory – otherwise the game cannot find the `assets` folder.
-
-A window opens and the game runs.
+Or double-click `Start_Falling_Asteroids.bat` on Windows.
 
 ## Controls
 
 | Key | Action |
 |-----|--------|
-| **1–9** (in menu) | Asteroid size (difficulty) |
-| **SPACE** (in menu) | Start game |
+| **1** (menu) | Easy difficulty |
+| **2** (menu) | Normal difficulty |
+| **3** (menu) | Difficult difficulty |
+| **ENTER** (menu) | Start game |
 | **Left** / **A** | Rotate cannon left |
 | **Right** / **D** | Rotate cannon right |
 | **SPACE** (in game) | Shoot |
-| **SPACE** (game over) | Back to menu |
-| **Escape** | Quit |
+| **ENTER** (game over) | Back to menu / Enter name |
+| **Escape** | Quit / Back to menu |
 
-## Rules
+## Difficulty
 
-- The **cannon** at the bottom is fixed; **rotate** it to aim.
-- **Asteroids** (irregular rocks) fall from the top. Shoot them with the white bullets.
-- Each hit gives **10 points**. Asteroids get **faster** over time.
-- If an asteroid touches the **green ground line**, it’s **Game Over**—press SPACE to return to the menu.
+| Level | Asteroid size | Description |
+|-------|--------------|-------------|
+| 1 = Easy | Large | Big targets, easy to hit |
+| 2 = Normal | Medium | Balanced challenge |
+| 3 = Difficult | Small | Tiny targets, hard to hit |
 
-## Optional: music and images
+## Highscores
 
-The game looks for files in the **`assets`** folder (next to `main.py`). You must run the game from the project folder (see step 3 above), otherwise these files are not found.
+- **10 entries per difficulty level**, shown on the menu screen
+- After game over, enter your name if you made the top 10
+- Press ENTER to confirm or ESC to skip
+- **Desktop:** saved in `highscores.json`
+- **Browser:** saved in localStorage (persists across sessions)
 
-- **Music:** Put `space_music.ogg` or `space_music.mp3` in `assets/` – the game will loop it.
-- **Cannon:** Put `cannon.png` in `assets/` for a custom cannon graphic (barrel pointing up).
-- **Spaceship:** Put `spaceship.png` (or `ship.png`) in `assets/` for a custom ship under the cannon.
+## Optional: images
 
-See `assets/README.txt` for a short guide (in German).
+Place files in the `assets/` folder next to `main.py`:
 
-Enjoy!
+- **Cannon:** `cannon.png` — custom cannon graphic
+- **Spaceship:** `spaceship.png` — custom ship under the cannon
