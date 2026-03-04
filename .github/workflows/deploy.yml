@@ -44,6 +44,39 @@ jobs:
       - name: Build with pygbag
         run: python -m pygbag --build main.py
 
+      - name: Optimize HTML for mobile browsers
+        run: |
+          python3 << 'PYEOF'
+          import os
+          index = "build/web/index.html"
+          if not os.path.isfile(index):
+              print(f"WARNING: {index} not found, skipping mobile optimization")
+          else:
+              with open(index, "r", encoding="utf-8") as f:
+                  html = f.read()
+
+              viewport = '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">'
+              mobile_css = """<style>
+          * { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+          html, body { overscroll-behavior: none; overflow: hidden; position: fixed; width: 100%; height: 100%; margin: 0; padding: 0; }
+          canvas { touch-action: none; }
+          </style>"""
+
+              if "<head>" in html:
+                  html = html.replace("<head>", f"<head>\n{viewport}", 1)
+              elif "<HEAD>" in html:
+                  html = html.replace("<HEAD>", f"<HEAD>\n{viewport}", 1)
+
+              if "</head>" in html:
+                  html = html.replace("</head>", f"{mobile_css}\n</head>", 1)
+              elif "</HEAD>" in html:
+                  html = html.replace("</HEAD>", f"{mobile_css}\n</HEAD>", 1)
+
+              with open(index, "w", encoding="utf-8") as f:
+                  f.write(html)
+              print("Mobile optimizations applied to index.html")
+          PYEOF
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
