@@ -17,7 +17,8 @@ def _load_config():
         "WIDTH": 600, "HEIGHT": 800,
         "BARREL_WIDTH": 24, "BARREL_LENGTH": 56,
         "CANNON_BASE_WIDTH": 70, "CANNON_BASE_HEIGHT": 22,
-        "ROTATE_SPEED": 3.3, "MENU_ASTEROID_ROTATE_SPEED": 3.0,
+        "ROTATE_SPEED": 3.3, "ROTATE_SPEED_MAX": 8.0, "ROTATE_ACCEL": 0.3,
+        "MENU_ASTEROID_ROTATE_SPEED": 3.0,
         "BULLET_SPEED": 12,
         "ASTEROID_RADIUS_MIN": 10, "ASTEROID_RADIUS_MAX": 120,
         "ASTEROID_SIZE_VARIANCE": 0.15,
@@ -38,7 +39,7 @@ def _load_config():
         "POWERUP_NORMAL_SIZE_MULTIPLIER": 1.25,
         "MAX_EXTRA_SHOTS": 5,
         "START_LIVES": 3, "MAX_LIVES": 10,
-        "SHIELD_DURATION_SEC": 10, "SHIELD_ARC_RADIUS": 320, "SHIELD_ARC_TOP_OFFSET": 180,
+        "SHIELD_DURATION_SEC": 10, "SHIELD_ARC_RADIUS": 320, "SHIELD_ARC_TOP_OFFSET": 80,
         "LASER_DURATION_SEC": 5, "TRIPLE_SHOT_COUNT": 10,
         "TOUCH_DRAG_SENSITIVITY": 4.0,
         "TOUCH_TAP_THRESHOLD": 0.02,
@@ -85,6 +86,8 @@ BARREL_LENGTH = S(_cfg["BARREL_LENGTH"])
 CANNON_BASE_WIDTH = S(_cfg["CANNON_BASE_WIDTH"])
 CANNON_BASE_HEIGHT = S(_cfg["CANNON_BASE_HEIGHT"])
 ROTATE_SPEED = _cfg["ROTATE_SPEED"]
+ROTATE_SPEED_MAX = _cfg.get("ROTATE_SPEED_MAX", 8.0)
+ROTATE_ACCEL = _cfg.get("ROTATE_ACCEL", 0.3)
 MENU_ASTEROID_ROTATE_SPEED = _cfg["MENU_ASTEROID_ROTATE_SPEED"]
 BULLET_SPEED = _cfg["BULLET_SPEED"] * UI_SCALE
 ASTEROID_RADIUS_MIN = S(_cfg["ASTEROID_RADIUS_MIN"])
@@ -137,8 +140,8 @@ DIFFICULTIES = {
     2: {"name": "Normal", "size": 6, "key": "normal"},
     3: {"name": "Difficult", "size": 3, "key": "difficult"},
 }
-TEST_MODE_POWERUP_SPAWN_CHANCE = 0.08
-TEST_MODE_POWERUP_MAX_ON_SCREEN = 8
+TEST_MODE_POWERUP_SPAWN_CHANCE = 0.04
+TEST_MODE_POWERUP_MAX_ON_SCREEN = 4
 
 POWERUP_COLORS = {
     "triple_shot": (100, 200, 255), "shield": (80, 220, 120), "bomb": (255, 120, 60),
@@ -187,24 +190,43 @@ def size_to_radius(size):
 
 def make_asteroid_vertices(radius, num_points=None):
     if num_points is None:
-        num_points = max(8, min(14, radius // 8))
+        num_points = max(12, min(22, radius // 4))
+    elongation = random.uniform(0.8, 1.25)
+    elong_angle = random.uniform(0, 2 * math.pi)
+    octaves = [
+        (random.uniform(0, 2 * math.pi), random.randint(2, 4), random.uniform(0.06, 0.14)),
+        (random.uniform(0, 2 * math.pi), random.randint(5, 8), random.uniform(0.03, 0.08)),
+    ]
+    has_crevice = random.random() < 0.35
+    crev_a = random.uniform(0, 2 * math.pi)
+    crev_w = random.uniform(0.25, 0.55)
+    crev_d = random.uniform(0.18, 0.35)
     verts = []
     for i in range(num_points):
-        angle = (i / num_points) * 2 * math.pi + random.uniform(0, 0.3)
-        r = radius * random.uniform(0.75, 1.2)
-        verts.append((r * math.cos(angle), r * math.sin(angle)))
+        a = (i / num_points) * 2 * math.pi
+        cos_d = math.cos(a - elong_angle)
+        r = radius * math.sqrt(1.0 + (elongation - 1.0) * cos_d * cos_d)
+        noise = sum(amp * math.sin(freq * a + ph) for ph, freq, amp in octaves)
+        r *= (1.0 + noise)
+        if has_crevice:
+            diff = abs(a - crev_a)
+            diff = min(diff, 2 * math.pi - diff)
+            if diff < crev_w:
+                r *= 1.0 - crev_d * (1.0 - diff / crev_w) ** 2
+        r *= random.uniform(0.94, 1.06)
+        verts.append((r * math.cos(a), r * math.sin(a)))
     return verts
 
 
 def make_asteroid_craters(radius):
     craters = []
-    n = max(2, min(6, radius // 15))
+    n = max(2, min(8, radius // 10))
     for _ in range(n):
         angle = random.uniform(0, 2 * math.pi)
-        dist = random.uniform(0.1, 0.6) * radius
+        dist = random.uniform(0.15, 0.65) * radius
         dx = dist * math.cos(angle)
         dy = dist * math.sin(angle)
-        cr = random.uniform(0.08, 0.22) * radius
+        cr = random.uniform(0.06, 0.2) * radius
         craters.append((dx, dy, max(2, cr)))
     return craters
 
@@ -600,7 +622,7 @@ def load_shoot_sound(assets_dir, log):
 
 
 def make_menu_state(difficulty, angle=0, test_mode=False):
-    _r = min(size_to_radius(DIFFICULTIES[difficulty]["size"]), S(80))
+    _r = size_to_radius(DIFFICULTIES[difficulty]["size"])
     return {
         "menu": True, "difficulty": difficulty,
         "menu_asteroid_angle": angle,
@@ -635,7 +657,7 @@ async def main():
         joystick.init()
         print(f"Controller: {joystick.get_name()}")
 
-    touch_state = {"active": False, "start_x": 0.0, "start_y": 0.0, "moved": 0.0, "start_tick": 0}
+    touch_fingers = {}
 
     assets_dir = get_assets_dir()
     print("Assets folder:", os.path.abspath(assets_dir))
@@ -786,7 +808,7 @@ async def main():
                         state["menu_asteroid_angle"] = saved_angle
                     diff = state.get("difficulty", 2)
                     if state.get("menu") and state.get("menu_asteroid_cached_diff") != diff:
-                        _r = min(size_to_radius(DIFFICULTIES[diff]["size"]), S(80))
+                        _r = size_to_radius(DIFFICULTIES[diff]["size"])
                         state["menu_asteroid_verts"] = make_asteroid_vertices(_r)
                         state["menu_asteroid_craters"] = make_asteroid_craters(_r)
                         state["menu_asteroid_cached_diff"] = diff
@@ -795,7 +817,7 @@ async def main():
                 if state.get("game_over") and event.key == pygame.K_RETURN:
                     score = state.get("score", 0)
                     diff = state.get("difficulty", 2)
-                    if is_highscore(highscores, diff, score):
+                    if not state.get("test_mode") and is_highscore(highscores, diff, score):
                         if _is_web():
                             name = _web_prompt_name()
                             highscores = add_highscore(highscores, diff, name, score)
@@ -844,7 +866,7 @@ async def main():
                     if event.button in (0, 7):
                         score = state.get("score", 0)
                         diff = state.get("difficulty", 2)
-                        if is_highscore(highscores, diff, score):
+                        if not state.get("test_mode") and is_highscore(highscores, diff, score):
                             if _is_web():
                                 name = _web_prompt_name()
                                 highscores = add_highscore(highscores, diff, name, score)
@@ -875,28 +897,33 @@ async def main():
                         state["test_mode"] = False
                     diff = state.get("difficulty", 2)
                     if state.get("menu_asteroid_cached_diff") != diff:
-                        _r = min(size_to_radius(DIFFICULTIES[diff]["size"]), S(80))
+                        _r = size_to_radius(DIFFICULTIES[diff]["size"])
                         state["menu_asteroid_verts"] = make_asteroid_vertices(_r)
                         state["menu_asteroid_craters"] = make_asteroid_craters(_r)
                         state["menu_asteroid_cached_diff"] = diff
 
-            # --- Touch events ---
+            # --- Touch events (Split-Screen: left half=aim/drag, right half=fire) ---
             if event.type == pygame.FINGERDOWN:
-                touch_state["active"] = True
-                touch_state["start_x"] = event.x
-                touch_state["start_y"] = event.y
-                touch_state["moved"] = 0.0
-                touch_state["start_tick"] = tick
+                fid = event.finger_id
+                touch_fingers[fid] = {"start_x": event.x, "start_y": event.y, "moved": 0.0, "start_tick": tick}
+                _in_game = not state.get("menu") and not state.get("game_over") and not state.get("paused") and not state.get("entering_name")
+                if _in_game and event.x >= 0.5:
+                    fire_cannon(state)
 
-            if event.type == pygame.FINGERMOTION and touch_state["active"]:
-                touch_state["moved"] += abs(event.dx) + abs(event.dy)
-                if not state.get("menu") and not state.get("game_over") and not state.get("paused") and not state.get("entering_name"):
-                    state["angle"] += event.dx * TOUCH_DRAG_SENSITIVITY * ROTATE_SPEED * 20
-                    state["angle"] = max(-80, min(80, state["angle"]))
+            if event.type == pygame.FINGERMOTION:
+                fid = event.finger_id
+                if fid in touch_fingers:
+                    touch_fingers[fid]["moved"] += abs(event.dx) + abs(event.dy)
+                    _in_game = not state.get("menu") and not state.get("game_over") and not state.get("paused") and not state.get("entering_name")
+                    if _in_game and touch_fingers[fid]["start_x"] < 0.5:
+                        state["angle"] += event.dx * TOUCH_DRAG_SENSITIVITY * ROTATE_SPEED * 20
+                        state["angle"] = max(-80, min(80, state["angle"]))
 
             if event.type == pygame.FINGERUP:
-                if touch_state["active"]:
-                    was_tap = touch_state["moved"] < TOUCH_TAP_THRESHOLD
+                fid = event.finger_id
+                fi = touch_fingers.pop(fid, None)
+                if fi is not None:
+                    was_tap = fi["moved"] < TOUCH_TAP_THRESHOLD
                     touch_x = event.x * WIDTH
                     touch_y = event.y * HEIGHT
                     if state.get("entering_name"):
@@ -929,7 +956,7 @@ async def main():
                                         state["test_mode"] = False
                                         diff = d_num
                                         if state.get("menu_asteroid_cached_diff") != diff:
-                                            _r = min(size_to_radius(DIFFICULTIES[diff]["size"]), S(80))
+                                            _r = size_to_radius(DIFFICULTIES[diff]["size"])
                                             state["menu_asteroid_verts"] = make_asteroid_vertices(_r)
                                             state["menu_asteroid_craters"] = make_asteroid_craters(_r)
                                             state["menu_asteroid_cached_diff"] = diff
@@ -944,7 +971,7 @@ async def main():
                         if was_tap:
                             score = state.get("score", 0)
                             diff = state.get("difficulty", 2)
-                            if is_highscore(highscores, diff, score):
+                            if not state.get("test_mode") and is_highscore(highscores, diff, score):
                                 if _is_web():
                                     name = _web_prompt_name()
                                     highscores = add_highscore(highscores, diff, name, score)
@@ -967,10 +994,6 @@ async def main():
                                 state["paused"] = False
                             elif menu_y <= touch_y <= menu_y + btn_h and btn_x <= touch_x <= btn_x + btn_w:
                                 state = make_menu_state(state.get("difficulty", 2), state.get("menu_asteroid_angle", 0), state.get("test_mode", False))
-                    else:
-                        if was_tap:
-                            fire_cannon(state)
-                    touch_state["active"] = False
 
         # --- Controller analog stick (continuous, polled every frame) ---
         if joystick is not None and not state.get("menu") and not state.get("game_over") and not state.get("paused"):
@@ -985,10 +1008,16 @@ async def main():
         # --- Game logic ---
         if not state.get("menu") and not state.get("game_over") and not state.get("paused"):
             keys = pygame.key.get_pressed()
+            _rotating = (keys[pygame.K_LEFT] or keys[pygame.K_a]) or (keys[pygame.K_RIGHT] or keys[pygame.K_d])
+            if _rotating:
+                state["rotate_hold"] = state.get("rotate_hold", 0) + 1
+            else:
+                state["rotate_hold"] = 0
+            _rspeed = min(ROTATE_SPEED_MAX, ROTATE_SPEED + state.get("rotate_hold", 0) * ROTATE_ACCEL)
             if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                state["angle"] -= ROTATE_SPEED
+                state["angle"] -= _rspeed
             if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                state["angle"] += ROTATE_SPEED
+                state["angle"] += _rspeed
             state["angle"] = max(-80, min(80, state["angle"]))
 
             diff = state.get("difficulty", 2)
@@ -1322,7 +1351,7 @@ async def main():
                 screen.blit(txt, (diff_btn_x + (diff_btn_w - txt.get_width()) // 2, y_diff + (diff_btn_h - txt.get_height()) // 2))
 
             # Controls
-            ctrl1 = font_tiny.render("Arrows / Drag = Rotate  |  SPACE / Tap = Shoot", True, GRAY)
+            ctrl1 = font_tiny.render("Arrows = Rotate | SPACE = Shoot | Touch: Left=Aim Right=Fire", True, GRAY)
             screen.blit(ctrl1, (WIDTH // 2 - ctrl1.get_width() // 2, S(175)))
             start_surf = font_small.render("Start", True, GREEN)
             start_w = max(start_surf.get_width() + S(40), S(160))
@@ -1589,20 +1618,23 @@ async def main():
                 hx = WIDTH - S(22) - hi * S(22)
                 draw_heart(screen, hx, S(28), S(14), (220, 40, 60))
                 draw_heart(screen, hx - 1, S(27), S(10), (255, 80, 100))
-            y_extra = S(52)
-            if state.get("triple_shot_remaining", 0) > 0:
-                ts_surf = font_tiny.render(f"3x Shot: {state['triple_shot_remaining']}", True, (100, 200, 255))
-                screen.blit(ts_surf, (S(22), y_extra))
-                y_extra += S(20)
-            if state.get("extra_shots", 0) > 0:
-                es_surf = font_tiny.render(f"Shots: {1 + state['extra_shots']}", True, (255, 220, 50))
-                screen.blit(es_surf, (S(22), y_extra))
-
             for sp in state.get("score_popups", []):
                 sp_alpha = max(0.0, sp["life"] / 40.0)
                 pc = (int(255 * sp_alpha), int(220 * sp_alpha), int(80 * sp_alpha))
                 popup = font_small.render(sp["text"], True, pc)
                 screen.blit(popup, (int(sp["x"]) - popup.get_width() // 2, int(sp["y"])))
+
+            if _is_web() and not state.get("paused"):
+                _tz_h = int(HEIGHT * 0.35)
+                _tz_surf = pygame.Surface((S(1), _tz_h), pygame.SRCALPHA)
+                _tz_surf.fill((120, 160, 220, 28))
+                screen.blit(_tz_surf, (WIDTH // 2, HEIGHT - GROUND_OFFSET - _tz_h))
+                _tz_lbl_a = font_tiny.render("AIM", True, (120, 160, 220))
+                _tz_lbl_f = font_tiny.render("FIRE", True, (120, 160, 220))
+                _tz_lbl_a.set_alpha(40)
+                _tz_lbl_f.set_alpha(40)
+                screen.blit(_tz_lbl_a, (WIDTH // 4 - _tz_lbl_a.get_width() // 2, HEIGHT - GROUND_OFFSET - S(16)))
+                screen.blit(_tz_lbl_f, (3 * WIDTH // 4 - _tz_lbl_f.get_width() // 2, HEIGHT - GROUND_OFFSET - S(16)))
 
             if state.get("paused"):
                 overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
