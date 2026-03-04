@@ -1,0 +1,77 @@
+{
+  "_comment_display": "=== DISPLAY ===",
+  "UI_SCALE":   1.0,    "_desc_UI_SCALE":   "Skalierungsfaktor fuer Fenster und alle Elemente (1.0 = 600x800, 1.5 = 900x1200)",
+  "WIDTH":      600,    "_desc_WIDTH":      "Basis-Breite des Spielfensters in Pixeln (wird mit UI_SCALE multipliziert)",
+  "HEIGHT":     800,    "_desc_HEIGHT":     "Basis-Hoehe des Spielfensters in Pixeln (wird mit UI_SCALE multipliziert)",
+  "GROUND_OFFSET": 20,  "_desc_GROUND_OFFSET": "Abstand des Bodens vom unteren Fensterrand in Pixeln",
+
+  "_comment_cannon": "=== KANONE ===",
+  "BARREL_WIDTH":      24,  "_desc_BARREL_WIDTH":      "Breite des Kanonenrohrs in Pixeln",
+  "BARREL_LENGTH":     56,  "_desc_BARREL_LENGTH":     "Laenge des Kanonenrohrs in Pixeln",
+  "CANNON_BASE_WIDTH": 70,  "_desc_CANNON_BASE_WIDTH": "Breite des Kanonen-Sockels in Pixeln",
+  "CANNON_BASE_HEIGHT": 22, "_desc_CANNON_BASE_HEIGHT":"Hoehe des Kanonen-Sockels in Pixeln",
+  "ROTATE_SPEED":      3.3, "_desc_ROTATE_SPEED":      "Drehgeschwindigkeit der Kanone in Grad pro Frame",
+  "BULLET_SPEED":      12,  "_desc_BULLET_SPEED":      "Geschwindigkeit der Geschosse in Pixeln pro Frame",
+  "SHOT_COST":         2,   "_desc_SHOT_COST":         "Punktabzug pro Schuss",
+
+  "_comment_asteroids": "=== ASTEROIDEN ===",
+  "ASTEROID_RADIUS_MIN": 10,   "_desc_ASTEROID_RADIUS_MIN": "Kleinster Asteroidenradius in Pixeln (Schwierigkeit Difficult)",
+  "ASTEROID_RADIUS_MAX": 120,  "_desc_ASTEROID_RADIUS_MAX": "Groesster Asteroidenradius in Pixeln (Schwierigkeit Easy)",
+  "ASTEROID_SIZE_VARIANCE": 0.15, "_desc_ASTEROID_SIZE_VARIANCE": "Zufaellige Groessenabweichung pro Asteroid (0.15 = +/-15%)",
+  "ASTEROID_START_SPEED": 2,   "_desc_ASTEROID_START_SPEED": "Startgeschwindigkeit der Asteroiden in Pixeln pro Frame",
+  "ASTEROID_SPEED_INCREASE_PER_HIT": 0.075, "_desc_ASTEROID_SPEED_INCREASE_PER_HIT": "Geschwindigkeitszunahme pro Treffer",
+  "ASTEROID_SPEED_INCREASE_PER_FRAME": 0.0005, "_desc_ASTEROID_SPEED_INCREASE_PER_FRAME": "Geschwindigkeitszunahme pro Frame (kontinuierlich)",
+  "ASTEROID_SPAWN_INTERVAL": 90, "_desc_ASTEROID_SPAWN_INTERVAL": "Start-Intervall zwischen Asteroiden-Spawns in Frames",
+  "ASTEROID_SPAWN_INTERVAL_MIN": 40, "_desc_ASTEROID_SPAWN_INTERVAL_MIN": "Minimales Spawn-Intervall (wird nicht unterschritten)",
+  "ASTEROID_SPAWN_INTERVAL_DECREASE_EVERY_FRAMES": 500, "_desc_ASTEROID_SPAWN_INTERVAL_DECREASE_EVERY_FRAMES": "Alle X Frames wird das Spawn-Intervall verkuerzt",
+  "ASTEROID_SPAWN_INTERVAL_DECREASE_STEP": 5, "_desc_ASTEROID_SPAWN_INTERVAL_DECREASE_STEP": "Um wie viele Frames das Intervall pro Stufe sinkt",
+  "GOLDEN_ASTEROID_CHANCE": 0.01, "_desc_GOLDEN_ASTEROID_CHANCE": "Wahrscheinlichkeit fuer goldene Asteroiden (0.01 = 1%)",
+  "GOLDEN_ASTEROID_MULTIPLIER": 2, "_desc_GOLDEN_ASTEROID_MULTIPLIER": "Punktemultiplikator fuer goldene Asteroiden",
+
+  "_comment_scoring": "=== PUNKTE & LEVEL ===",
+  "POINTS_PER_HIT": 10,   "_desc_POINTS_PER_HIT":   "Punkte pro zerstoertem Asteroid",
+  "POINTS_PER_LEVEL": 100, "_desc_POINTS_PER_LEVEL": "Benoetigte Punkte pro Level-Aufstieg",
+
+  "_comment_lives": "=== LEBEN ===",
+  "START_LIVES": 2,  "_desc_START_LIVES": "Anzahl Leben bei Spielstart",
+  "MAX_LIVES":  5,  "_desc_MAX_LIVES":  "Maximale Anzahl Leben (durch Life-Power-up)",
+
+  "_comment_shield": "=== SCHILD ===",
+  "SHIELD_DURATION_SEC": 10,  "_desc_SHIELD_DURATION_SEC": "Dauer des Schildes in Sekunden",
+  "SHIELD_ARC_RADIUS":  320,  "_desc_SHIELD_ARC_RADIUS":  "Radius des Schild-Bogens in Pixeln",
+  "SHIELD_ARC_TOP_OFFSET": 180, "_desc_SHIELD_ARC_TOP_OFFSET": "Abstand des Schild-Mittelpunkts ueber dem Boden (Pixel)",
+
+  "_comment_laser": "=== LASER ===",
+  "LASER_DURATION_SEC": 5,  "_desc_LASER_DURATION_SEC": "Dauer des Lasers in Sekunden",
+
+  "_comment_powerups": "=== POWER-UPS ===",
+  "POWERUP_RADIUS": 20,   "_desc_POWERUP_RADIUS":  "Basis-Radius der Power-ups in Pixeln",
+  "POWERUP_MAX_ON_SCREEN": 3, "_desc_POWERUP_MAX_ON_SCREEN": "Maximale Anzahl Power-ups gleichzeitig auf dem Bildschirm",
+  "POWERUP_SPAWN_CHANCE_PER_FRAME": 0.002, "_desc_POWERUP_SPAWN_CHANCE_PER_FRAME": "Spawn-Wahrscheinlichkeit pro Frame (0.002 = 0.2%)",
+  "POWERUP_EASY_SIZE_MULTIPLIER": 2.0, "_desc_POWERUP_EASY_SIZE_MULTIPLIER": "Groessenfaktor fuer Power-ups in Easy",
+  "POWERUP_NORMAL_SIZE_MULTIPLIER": 1.25, "_desc_POWERUP_NORMAL_SIZE_MULTIPLIER": "Groessenfaktor fuer Power-ups in Normal",
+  "MAX_EXTRA_SHOTS": 5,    "_desc_MAX_EXTRA_SHOTS": "Maximale Zusatzschuesse durch Extra-Shot-Power-up",
+  "TRIPLE_SHOT_COUNT": 10, "_desc_TRIPLE_SHOT_COUNT": "Anzahl 3-fach-Schuesse nach Triple-Shot-Power-up",
+
+  "_comment_menu": "=== MENUE ===",
+  "MENU_ASTEROID_ROTATE_SPEED": 3.0, "_desc_MENU_ASTEROID_ROTATE_SPEED": "Drehgeschwindigkeit des Vorschau-Asteroiden im Menue",
+  "MAX_PARTICLES": 120,  "_desc_MAX_PARTICLES":  "Maximale Anzahl Explosionspartikel gleichzeitig",
+  "MAX_HIGHSCORES": 10,  "_desc_MAX_HIGHSCORES": "Maximale Anzahl Highscore-Eintraege pro Schwierigkeit",
+
+  "_comment_input": "=== STEUERUNG (Controller & Touch) ===",
+  "TOUCH_DRAG_SENSITIVITY": 4.0, "_desc_TOUCH_DRAG_SENSITIVITY": "Empfindlichkeit der Touch-Drehung (hoeher = schneller)",
+  "TOUCH_TAP_THRESHOLD": 0.02, "_desc_TOUCH_TAP_THRESHOLD": "Maximale Fingerbewegung fuer Tap-Erkennung (0.02 = 2% des Bildschirms)",
+  "CONTROLLER_DEADZONE": 0.15, "_desc_CONTROLLER_DEADZONE": "Totzone des Analog-Sticks (0.15 = 15%)",
+  "CONTROLLER_ROTATE_SPEED_FACTOR": 1.0, "_desc_CONTROLLER_ROTATE_SPEED_FACTOR": "Drehgeschwindigkeits-Multiplikator fuer Controller",
+
+  "_comment_power_up_types": "=== POWER-UP TYPEN (min_level = ab welchem Level, spawn_weight = relative Haeufigkeit, label = Buchstabe auf dem Power-up) ===",
+  "power_ups": {
+    "triple_shot": { "min_level": 1, "spawn_weight": 0,   "label": "T", "_desc": "3-fach-Schuss fuer die naechsten N Schuesse" },
+    "shield":      { "min_level": 1, "spawn_weight": 1,   "label": "S", "_desc": "Schutzschild fuer X Sekunden, absorbiert alle Einschlaege" },
+    "bomb":        { "min_level": 0, "spawn_weight": 1,   "label": "B", "_desc": "Zerstoert alle Asteroiden auf dem Bildschirm" },
+    "laser":       { "min_level": 2, "spawn_weight": 1,   "label": "L", "_desc": "Durchgehender Laserstrahl fuer X Sekunden" },
+    "slow":        { "min_level": 1, "spawn_weight": 1,   "label": "W", "_desc": "Verlangsamt Asteroiden um 10%" },
+    "extra_shot":  { "min_level": 2, "spawn_weight": 1,   "label": "+", "_desc": "+1 Schuss pro Abfeuern (max MAX_EXTRA_SHOTS)" },
+    "life":        { "min_level": 0, "spawn_weight": 1, "label": "♥", "_desc": "+1 Leben (max MAX_LIVES)" }
+  }
+}
