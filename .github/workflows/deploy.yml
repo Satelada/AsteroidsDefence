@@ -41,14 +41,30 @@ jobs:
             [ -f "$f" ] && ffmpeg -y -i "$f" -c:a libvorbis -q:a 4 "${f%.wav}.ogg"
           done
 
-      - name: Build with pygbag
-        run: python -m pygbag --build main.py
+      - name: Prepare minimal web source package
+        run: |
+          rm -rf web_release_src
+          mkdir -p web_release_src/assets
+          cp main.py config.json web_release_src/
+          for f in assets/*; do
+            [ -f "$f" ] || continue
+            case "$f" in
+              *.ogg|*.png|*.gif|*.jpg|*.jpeg|*.webp|*.txt|*.json)
+                cp "$f" web_release_src/assets/
+                ;;
+            esac
+          done
+
+      - name: Build with pygbag (minimal package)
+        run: |
+          cd web_release_src
+          python -m pygbag --build main.py
 
       - name: Optimize HTML for mobile browsers
         run: |
           python3 << 'PYEOF'
           import os
-          index = "build/web/index.html"
+          index = "web_release_src/build/web/index.html"
           if not os.path.isfile(index):
               print(f"WARNING: {index} not found, skipping mobile optimization")
           else:
@@ -57,10 +73,41 @@ jobs:
 
               viewport = '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">'
               mobile_css = """<style>
-          * { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
           html, body { overscroll-behavior: none; overflow: hidden; position: fixed; width: 100%; height: 100%; margin: 0; padding: 0; }
-          canvas { touch-action: none; }
+          canvas.emscripten, #canvas { touch-action: none; }
+          #infobox { touch-action: manipulation; cursor: pointer; }
           </style>"""
+              mobile_js = """<script>
+          (function () {
+            let touched = false;
+            function setInfoText(msg) {
+              try {
+                if (window.infobox) {
+                  window.infobox.style.display = "block";
+                  window.infobox.innerText = msg;
+                }
+              } catch (e) {}
+            }
+            function markInteraction() {
+              touched = true;
+              try {
+                if (window.MM) { window.MM.UME = true; }
+                if (window.Module && window.Module.canvas) { window.Module.canvas.focus(); }
+              } catch (e) {}
+              setInfoText("Starte Spiel... bitte kurz warten");
+            }
+            setInfoText("Lade Inhalte... Erster Start auf Handy kann 10-30s dauern. Falls noetig einmal tippen.");
+            document.addEventListener("touchstart", markInteraction, { passive: true });
+            document.addEventListener("pointerdown", markInteraction, { passive: true });
+            document.addEventListener("click", markInteraction, { passive: true });
+            const timer = setInterval(function () {
+              if (touched && window.MM) {
+                window.MM.UME = true;
+                clearInterval(timer);
+              }
+            }, 200);
+          })();
+          </script>"""
 
               if "<head>" in html:
                   html = html.replace("<head>", f"<head>\n{viewport}", 1)
@@ -72,6 +119,11 @@ jobs:
               elif "</HEAD>" in html:
                   html = html.replace("</HEAD>", f"{mobile_css}\n</HEAD>", 1)
 
+              if "</body>" in html:
+                  html = html.replace("</body>", f"{mobile_js}\n</body>", 1)
+              elif "</BODY>" in html:
+                  html = html.replace("</BODY>", f"{mobile_js}\n</BODY>", 1)
+
               with open(index, "w", encoding="utf-8") as f:
                   f.write(html)
               print("Mobile optimizations applied to index.html")
@@ -80,7 +132,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: build/web
+          path: web_release_src/build/web
 
   deploy:
     needs: build
