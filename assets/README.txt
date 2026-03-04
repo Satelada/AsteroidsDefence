@@ -1,22 +1,19 @@
-Assets for Falling Asteroids
-=============================
+Assets for Asteroid Defence
+============================
 
-TON UND GRAFIKEN GEHEN NUR, WENN DU HIER DATEIEN ABLEGST:
-----------------------------------------------------------
-Dieser Ordner ist zunaechst LEER (nur diese README). Du musst die Dateien
-selbst besorgen und hier ablegen – dann laden Musik und Bilder beim Start.
+Dieser Ordner ist zunaechst LEER (nur diese README).
+Lege hier optionale Dateien ab, die beim Spielstart automatisch geladen werden.
 
-Beim Start ueber die Batch-Datei oder "python main.py" siehst du in der
-Konsolen-Ausgabe, was gefunden wurde, z.B.:
-  "Cannon: not found"  -> cannon.png fehlt
+Beim Start siehst du in der Konsole, was gefunden wurde, z.B.:
+  "Cannon: not found"  -> cannon.png fehlt (Fallback-Grafik wird genutzt)
   "Music: playing"     -> Musik laeuft
 
-Benötigte Dateien (exakter Name):
+Optionale Dateien (exakter Name):
 ---------------------------------
-  space_music.ogg   oder  space_music.mp3   = Hintergrundmusik
-  cannon.png                               = Kanone (Lauf nach oben)
-  spaceship.png    oder  ship.png           = Raumschiff unter der Kanone
+  cannon.png                             = Kanonen-Grafik (Lauf nach oben)
+  spaceship.png  oder  ship.png          = Raumschiff unter der Kanone
+  space_music.ogg  oder  space_music.mp3 = Hintergrundmusik
+  shoot.wav  oder  shoot.ogg             = Schuss-Soundeffekt
 
-Formate: PNG/GIF fuer Bilder. OGG oder MP3 fuer Musik.
-Kostenlose Musik: opengameart.org (z.B. "Space" oder "Chiptune"), freesound.org.
-Ersetze space_music.wav durch deine Datei fuer andere Musik.
+Formate: PNG/GIF fuer Bilder. OGG oder MP3 fuer Musik/Sound.
+Kostenlose Quellen: opengameart.org, freesound.org
