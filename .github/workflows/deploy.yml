@@ -106,6 +106,18 @@ jobs:
                 clearInterval(timer);
               }
             }, 200);
+            const hideTimer = setInterval(function () {
+              try {
+                if (window.Module && window.Module.calledRun) {
+                  if (window.infobox) { window.infobox.style.display = "none"; }
+                  clearInterval(hideTimer);
+                }
+              } catch (e) {}
+            }, 500);
+            setTimeout(function () {
+              try { if (window.infobox) { window.infobox.style.display = "none"; } } catch (e) {}
+              clearInterval(hideTimer);
+            }, 30000);
           })();
           </script>"""
 
