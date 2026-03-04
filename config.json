@@ -10,7 +10,9 @@
   "BARREL_LENGTH":     56,  "_desc_BARREL_LENGTH":     "Laenge des Kanonenrohrs in Pixeln",
   "CANNON_BASE_WIDTH": 70,  "_desc_CANNON_BASE_WIDTH": "Breite des Kanonen-Sockels in Pixeln",
   "CANNON_BASE_HEIGHT": 22, "_desc_CANNON_BASE_HEIGHT":"Hoehe des Kanonen-Sockels in Pixeln",
-  "ROTATE_SPEED":      3.3, "_desc_ROTATE_SPEED":      "Drehgeschwindigkeit der Kanone in Grad pro Frame",
+  "ROTATE_SPEED":      2.0, "_desc_ROTATE_SPEED":      "Start-Drehgeschwindigkeit der Kanone in Grad pro Frame (bei kurzem Tippen)",
+  "ROTATE_SPEED_MAX":  6.0, "_desc_ROTATE_SPEED_MAX":  "Maximale Drehgeschwindigkeit bei gehaltenem Tastenknopf",
+  "ROTATE_ACCEL":      0.2, "_desc_ROTATE_ACCEL":      "Beschleunigung der Drehung pro Frame bei gehaltener Taste",
   "BULLET_SPEED":      12,  "_desc_BULLET_SPEED":      "Geschwindigkeit der Geschosse in Pixeln pro Frame",
   "SHOT_COST":         2,   "_desc_SHOT_COST":         "Punktabzug pro Schuss",
 
@@ -33,13 +35,13 @@
   "POINTS_PER_LEVEL": 100, "_desc_POINTS_PER_LEVEL": "Benoetigte Punkte pro Level-Aufstieg",
 
   "_comment_lives": "=== LEBEN ===",
-  "START_LIVES": 2,  "_desc_START_LIVES": "Anzahl Leben bei Spielstart",
+  "START_LIVES": 1,  "_desc_START_LIVES": "Anzahl Leben bei Spielstart",
   "MAX_LIVES":  5,  "_desc_MAX_LIVES":  "Maximale Anzahl Leben (durch Life-Power-up)",
 
   "_comment_shield": "=== SCHILD ===",
   "SHIELD_DURATION_SEC": 10,  "_desc_SHIELD_DURATION_SEC": "Dauer des Schildes in Sekunden",
   "SHIELD_ARC_RADIUS":  320,  "_desc_SHIELD_ARC_RADIUS":  "Radius des Schild-Bogens in Pixeln",
-  "SHIELD_ARC_TOP_OFFSET": 180, "_desc_SHIELD_ARC_TOP_OFFSET": "Abstand des Schild-Mittelpunkts ueber dem Boden (Pixel)",
+  "SHIELD_ARC_TOP_OFFSET": 80, "_desc_SHIELD_ARC_TOP_OFFSET": "Abstand des Schild-Mittelpunkts ueber dem Boden (Pixel)",
 
   "_comment_laser": "=== LASER ===",
   "LASER_DURATION_SEC": 5,  "_desc_LASER_DURATION_SEC": "Dauer des Lasers in Sekunden",
@@ -47,7 +49,7 @@
   "_comment_powerups": "=== POWER-UPS ===",
   "POWERUP_RADIUS": 20,   "_desc_POWERUP_RADIUS":  "Basis-Radius der Power-ups in Pixeln",
   "POWERUP_MAX_ON_SCREEN": 3, "_desc_POWERUP_MAX_ON_SCREEN": "Maximale Anzahl Power-ups gleichzeitig auf dem Bildschirm",
-  "POWERUP_SPAWN_CHANCE_PER_FRAME": 0.002, "_desc_POWERUP_SPAWN_CHANCE_PER_FRAME": "Spawn-Wahrscheinlichkeit pro Frame (0.002 = 0.2%)",
+  "POWERUP_SPAWN_CHANCE_PER_FRAME": 0.0025, "_desc_POWERUP_SPAWN_CHANCE_PER_FRAME": "Spawn-Wahrscheinlichkeit pro Frame (0.002 = 0.2%)",
   "POWERUP_EASY_SIZE_MULTIPLIER": 2.0, "_desc_POWERUP_EASY_SIZE_MULTIPLIER": "Groessenfaktor fuer Power-ups in Easy",
   "POWERUP_NORMAL_SIZE_MULTIPLIER": 1.25, "_desc_POWERUP_NORMAL_SIZE_MULTIPLIER": "Groessenfaktor fuer Power-ups in Normal",
   "MAX_EXTRA_SHOTS": 5,    "_desc_MAX_EXTRA_SHOTS": "Maximale Zusatzschuesse durch Extra-Shot-Power-up",
@@ -66,12 +68,11 @@
 
   "_comment_power_up_types": "=== POWER-UP TYPEN (min_level = ab welchem Level, spawn_weight = relative Haeufigkeit, label = Buchstabe auf dem Power-up) ===",
   "power_ups": {
-    "triple_shot": { "min_level": 1, "spawn_weight": 0,   "label": "T", "_desc": "3-fach-Schuss fuer die naechsten N Schuesse" },
     "shield":      { "min_level": 1, "spawn_weight": 1,   "label": "S", "_desc": "Schutzschild fuer X Sekunden, absorbiert alle Einschlaege" },
     "bomb":        { "min_level": 0, "spawn_weight": 1,   "label": "B", "_desc": "Zerstoert alle Asteroiden auf dem Bildschirm" },
-    "laser":       { "min_level": 2, "spawn_weight": 1,   "label": "L", "_desc": "Durchgehender Laserstrahl fuer X Sekunden" },
-    "slow":        { "min_level": 1, "spawn_weight": 1,   "label": "W", "_desc": "Verlangsamt Asteroiden um 10%" },
-    "extra_shot":  { "min_level": 2, "spawn_weight": 1,   "label": "+", "_desc": "+1 Schuss pro Abfeuern (max MAX_EXTRA_SHOTS)" },
+    "laser":       { "min_level": 3, "spawn_weight": 1,   "label": "L", "_desc": "Durchgehender Laserstrahl fuer X Sekunden" },
+    "slow":        { "min_level": 1, "spawn_weight": 1.5,   "label": "W", "_desc": "Verlangsamt Asteroiden um 10%" },
+    "extra_shot":  { "min_level": 2, "spawn_weight": 2,   "label": "+", "_desc": "+1 Schuss pro Abfeuern (max MAX_EXTRA_SHOTS)" },
     "life":        { "min_level": 0, "spawn_weight": 1, "label": "♥", "_desc": "+1 Leben (max MAX_LIVES)" }
   }
 }
